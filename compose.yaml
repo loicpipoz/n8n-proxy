@@ -35,8 +35,8 @@ services:
       - NET_ADMIN
       - NET_RAW
     ports:
-      - "${HTTP_BIND:-0.0.0.0}:80:80"
-      - "${HTTPS_BIND:-0.0.0.0}:443:443"
+      - "${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-80}:80"
+      - "${HTTPS_BIND:-0.0.0.0}:${HTTPS_PORT:-443}:443"
 
   caddy:
     image: caddy:2-alpine

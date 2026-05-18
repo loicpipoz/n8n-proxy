@@ -26,6 +26,8 @@ PUBLIC_DOMAIN=hooks.example.com
 N8N_UPSTREAM_URL=http://n8n-prod.your-tailnet.ts.net:5678
 WEBHOOK_PATHS="/webhook/stripe/* /webhook/github/*"
 ALLOWED_SOURCE_CIDRS="0.0.0.0/0 ::/0"
+HTTP_PORT=80
+HTTPS_PORT=443
 ```
 
 Puis démarre :
@@ -45,6 +47,15 @@ Dans `compose.yaml`, les `$` sont doublés (`$${TS_AUTHKEY}`) pour que Docker Co
 ## DNS
 
 Crée un `A` ou `AAAA` public pour `PUBLIC_DOMAIN` vers le serveur qui exécute ce proxy. Caddy gère automatiquement le certificat HTTPS Let's Encrypt sur les ports `80` et `443`.
+
+Si `80` ou `443` est déjà utilisé sur le serveur, change les ports exposés côté hôte :
+
+```env
+HTTP_PORT=8080
+HTTPS_PORT=8443
+```
+
+Dans ce cas, il faut placer un autre reverse proxy devant, ou ouvrir/appeler explicitement ces ports. Pour que Caddy obtienne automatiquement un certificat Let's Encrypt en HTTP-01/TLS-ALPN-01, les ports publics standards `80`/`443` doivent arriver jusqu'à Caddy.
 
 ## Configuration n8n
 
