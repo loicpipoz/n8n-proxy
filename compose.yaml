@@ -50,6 +50,7 @@ services:
       - tailscale
     environment:
       PUBLIC_DOMAIN: "${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN in .env}"
+      CADDY_SITE_ADDRESS: "${CADDY_SITE_ADDRESS:-${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN in .env}}"
       N8N_UPSTREAM_URL: "${N8N_UPSTREAM_URL:?Set N8N_UPSTREAM_URL in .env}"
       WEBHOOK_METHODS: "${WEBHOOK_METHODS:-POST}"
       WEBHOOK_PATHS: "${WEBHOOK_PATHS:-/webhook/*}"

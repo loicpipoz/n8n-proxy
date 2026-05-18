@@ -23,6 +23,7 @@ cp .env.example .env
 ```env
 TS_AUTHKEY=tskey-auth-...
 PUBLIC_DOMAIN=hooks.example.com
+CADDY_SITE_ADDRESS=hooks.example.com
 N8N_UPSTREAM_URL=http://n8n-prod.your-tailnet.ts.net:5678
 WEBHOOK_PATHS="/webhook/stripe/* /webhook/github/*"
 ALLOWED_SOURCE_CIDRS="0.0.0.0/0 ::/0"
@@ -41,6 +42,18 @@ Si tu exposes Caddy sur un port externe non standard, mets seulement le port dan
 ```env
 PUBLIC_DOMAIN=n8n-wh01.spiritviews.com
 HTTPS_PORT=1443
+```
+
+`CADDY_SITE_ADDRESS` controle l'adresse d'ecoute dans le Caddyfile. Pour un Caddy public qui gere lui-meme TLS, garde le domaine :
+
+```env
+CADDY_SITE_ADDRESS=n8n-wh01.spiritviews.com
+```
+
+Pour un Caddy place derriere un autre reverse proxy, utilise une ecoute HTTP simple :
+
+```env
+CADDY_SITE_ADDRESS=:80
 ```
 
 Puis démarre :
@@ -83,6 +96,50 @@ docker compose logs caddy
 ```
 
 Et assure-toi que `PUBLIC_DOMAIN` ne contient pas `:1443`. Pour un certificat public Let's Encrypt automatique, au moins le port public `80` ou `443` doit permettre la validation ACME vers Caddy. Sinon, utilise un reverse proxy existant sur `80/443`, ou monte un certificat existant dans Caddy.
+
+## Derriere Nginx Proxy Manager
+
+Si Nginx Proxy Manager est deja sur la meme machine et ecoute les ports publics `80` et `443`, laisse NPM gerer le certificat HTTPS et utilise `n8n-proxy` comme backend HTTP local.
+
+Dans `.env` :
+
+```env
+PUBLIC_DOMAIN=n8n-wh01.spiritviews.com
+CADDY_SITE_ADDRESS=:80
+HTTP_BIND=127.0.0.1
+HTTP_PORT=18080
+HTTPS_BIND=127.0.0.1
+HTTPS_PORT=18443
+N8N_UPSTREAM_URL=http://n8n-prod.your-tailnet.ts.net:5678
+WEBHOOK_PATHS="/webhook-test/* /webhook/*"
+```
+
+Puis :
+
+```bash
+docker compose down
+docker compose up -d
+```
+
+Dans Nginx Proxy Manager, cree un Proxy Host :
+
+```text
+Domain Names: n8n-wh01.spiritviews.com
+Scheme: http
+Forward Hostname / IP: 127.0.0.1
+Forward Port: 18080
+SSL: Request a new SSL Certificate
+Force SSL: enabled
+HTTP/2 Support: enabled
+```
+
+Dans cette topologie, l'URL publique est :
+
+```text
+https://n8n-wh01.spiritviews.com/webhook-test/...
+```
+
+Pas besoin d'utiliser `:1443`, sauf si tu veux volontairement exposer un port HTTPS non standard.
 
 ## Configuration n8n
 

@@ -10,7 +10,7 @@
 	}
 }
 
-{$PUBLIC_DOMAIN} {
+{$CADDY_SITE_ADDRESS} {
 	encode zstd gzip
 
 	log {
