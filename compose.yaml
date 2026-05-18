@@ -6,6 +6,9 @@ services:
     container_name: n8n-proxy-tailscale
     hostname: ${TAILSCALE_HOSTNAME:-n8n-proxy}
     restart: unless-stopped
+    dns:
+      - 1.1.1.1
+      - 9.9.9.9
     environment:
       TS_AUTHKEY: "${TS_AUTHKEY:?Set TS_AUTHKEY in .env}"
       TS_STATE_DIR: /var/lib/tailscale
