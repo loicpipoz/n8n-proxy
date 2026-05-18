@@ -49,6 +49,7 @@
 				header_up X-Forwarded-Proto https
 
 				transport http {
+					versions 1.1
 					tls_server_name {$N8N_UPSTREAM_TLS_SERVER_NAME}
 				}
 			}

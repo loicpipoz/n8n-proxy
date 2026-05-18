@@ -145,6 +145,14 @@ https://n8n-wh01.spiritviews.com/webhook-test/...
 
 Pas besoin d'utiliser `:1443`, sauf si tu veux volontairement exposer un port HTTPS non standard.
 
+Si le conteneur ne resout pas le nom MagicDNS Tailscale, cible l'IP Tailscale et garde le hostname pour le Host header et le SNI TLS :
+
+```env
+N8N_UPSTREAM_URL=https://100.68.54.24
+N8N_UPSTREAM_HOST=n8n.monkey-eel.ts.net
+N8N_UPSTREAM_TLS_SERVER_NAME=n8n.monkey-eel.ts.net
+```
+
 ## Configuration n8n
 
 Sur chaque instance n8n exposée derrière ce proxy :
