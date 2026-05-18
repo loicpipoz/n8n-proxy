@@ -1,0 +1,65 @@
+name: n8n-proxy
+
+services:
+  tailscale:
+    image: tailscale/tailscale:${TAILSCALE_VERSION:-latest}
+    container_name: n8n-proxy-tailscale
+    hostname: ${TAILSCALE_HOSTNAME:-n8n-proxy}
+    restart: unless-stopped
+    environment:
+      TS_AUTHKEY: "${TS_AUTHKEY:?Set TS_AUTHKEY in .env}"
+      TS_STATE_DIR: /var/lib/tailscale
+      TAILSCALE_HOSTNAME: "${TAILSCALE_HOSTNAME:-n8n-proxy}"
+      TS_EXTRA_ARGS: "${TS_EXTRA_ARGS:---advertise-tags=tag:webhook-proxy --accept-dns=true}"
+    entrypoint: /bin/sh
+    command:
+      - -ec
+      - |
+        mkdir -p "$${TS_STATE_DIR}" /var/run/tailscale
+        tailscaled \
+          --state="$${TS_STATE_DIR}/tailscaled.state" \
+          --socket=/var/run/tailscale/tailscaled.sock &
+        tailscaled_pid="$$!"
+        trap 'kill "$${tailscaled_pid}"; wait "$${tailscaled_pid}"' INT TERM
+        until [ -S /var/run/tailscale/tailscaled.sock ]; do sleep 0.2; done
+        tailscale --socket=/var/run/tailscale/tailscaled.sock up \
+          --authkey="$${TS_AUTHKEY}" \
+          --hostname="$${TAILSCALE_HOSTNAME}" \
+          $${TS_EXTRA_ARGS}
+        wait "$${tailscaled_pid}"
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    ports:
+      - "${HTTP_BIND:-0.0.0.0}:80:80"
+      - "${HTTPS_BIND:-0.0.0.0}:443:443"
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: n8n-proxy-caddy
+    restart: unless-stopped
+    network_mode: service:tailscale
+    depends_on:
+      - tailscale
+    environment:
+      PUBLIC_DOMAIN: "${PUBLIC_DOMAIN:?Set PUBLIC_DOMAIN in .env}"
+      N8N_UPSTREAM_URL: "${N8N_UPSTREAM_URL:?Set N8N_UPSTREAM_URL in .env}"
+      WEBHOOK_METHODS: "${WEBHOOK_METHODS:-POST}"
+      WEBHOOK_PATHS: "${WEBHOOK_PATHS:-/webhook/*}"
+      ALLOWED_SOURCE_CIDRS: "${ALLOWED_SOURCE_CIDRS:-0.0.0.0/0 ::/0}"
+      MAX_BODY_SIZE: "${MAX_BODY_SIZE:-10MB}"
+      CADDY_LOG_DIR: "${CADDY_LOG_DIR:-/var/log/caddy}"
+    volumes:
+      - ./config/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./logs:/var/log/caddy
+      - caddy-data:/data
+      - caddy-config:/config
+
+volumes:
+  tailscale-state:
+  caddy-data:
+  caddy-config:

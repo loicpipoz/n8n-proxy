@@ -1,0 +1,54 @@
+{
+	log {
+		output file {$CADDY_LOG_DIR:/var/log/caddy}/runtime.log {
+			roll_size 20MiB
+			roll_keep 10
+			roll_keep_for 720h
+		}
+		format json
+		level INFO
+	}
+}
+
+{$PUBLIC_DOMAIN} {
+	encode zstd gzip
+
+	log {
+		output file {$CADDY_LOG_DIR:/var/log/caddy}/access.log {
+			roll_size 100MiB
+			roll_keep 30
+			roll_keep_for 720h
+		}
+		format json
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	@n8n_webhooks {
+		method {$WEBHOOK_METHODS}
+		path {$WEBHOOK_PATHS}
+		remote_ip {$ALLOWED_SOURCE_CIDRS}
+	}
+
+	route {
+		handle /healthz {
+			respond "ok\n" 200
+		}
+
+		handle @n8n_webhooks {
+			request_body {
+				max_size {$MAX_BODY_SIZE}
+			}
+
+			reverse_proxy {$N8N_UPSTREAM_URL} {
+				header_up X-Forwarded-Proto https
+			}
+		}
+
+		respond 404
+	}
+}
