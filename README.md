@@ -30,6 +30,19 @@ HTTP_PORT=80
 HTTPS_PORT=443
 ```
 
+`PUBLIC_DOMAIN` doit contenir uniquement le hostname, sans schéma et sans port :
+
+```env
+PUBLIC_DOMAIN=n8n-wh01.spiritviews.com
+```
+
+Si tu exposes Caddy sur un port externe non standard, mets seulement le port dans `HTTPS_PORT` :
+
+```env
+PUBLIC_DOMAIN=n8n-wh01.spiritviews.com
+HTTPS_PORT=1443
+```
+
 Puis démarre :
 
 ```bash
@@ -56,6 +69,20 @@ HTTPS_PORT=8443
 ```
 
 Dans ce cas, il faut placer un autre reverse proxy devant, ou ouvrir/appeler explicitement ces ports. Pour que Caddy obtienne automatiquement un certificat Let's Encrypt en HTTP-01/TLS-ALPN-01, les ports publics standards `80`/`443` doivent arriver jusqu'à Caddy.
+
+Un symptôme courant quand Caddy ne peut pas obtenir de certificat est :
+
+```text
+tlsv1 alert internal error
+```
+
+Vérifie alors :
+
+```bash
+docker compose logs caddy
+```
+
+Et assure-toi que `PUBLIC_DOMAIN` ne contient pas `:1443`. Pour un certificat public Let's Encrypt automatique, au moins le port public `80` ou `443` doit permettre la validation ACME vers Caddy. Sinon, utilise un reverse proxy existant sur `80/443`, ou monte un certificat existant dans Caddy.
 
 ## Configuration n8n
 
