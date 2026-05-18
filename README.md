@@ -24,7 +24,9 @@ cp .env.example .env
 TS_AUTHKEY=tskey-auth-...
 PUBLIC_DOMAIN=hooks.example.com
 CADDY_SITE_ADDRESS=hooks.example.com
-N8N_UPSTREAM_URL=http://n8n-prod.your-tailnet.ts.net:5678
+N8N_UPSTREAM_URL=https://n8n-prod.your-tailnet.ts.net
+N8N_UPSTREAM_HOST=n8n-prod.your-tailnet.ts.net
+N8N_UPSTREAM_TLS_SERVER_NAME=n8n-prod.your-tailnet.ts.net
 WEBHOOK_PATHS="/webhook/stripe/* /webhook/github/*"
 ALLOWED_SOURCE_CIDRS="0.0.0.0/0 ::/0"
 HTTP_PORT=80
@@ -110,7 +112,9 @@ HTTP_BIND=127.0.0.1
 HTTP_PORT=18080
 HTTPS_BIND=127.0.0.1
 HTTPS_PORT=18443
-N8N_UPSTREAM_URL=http://n8n-prod.your-tailnet.ts.net:5678
+N8N_UPSTREAM_URL=https://n8n-prod.your-tailnet.ts.net
+N8N_UPSTREAM_HOST=n8n-prod.your-tailnet.ts.net
+N8N_UPSTREAM_TLS_SERVER_NAME=n8n-prod.your-tailnet.ts.net
 WEBHOOK_PATHS="/webhook-test/* /webhook/*"
 ```
 
