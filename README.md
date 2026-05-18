@@ -28,6 +28,8 @@ N8N_UPSTREAM_URL=https://n8n-prod.your-tailnet.ts.net
 N8N_UPSTREAM_HOST=n8n-prod.your-tailnet.ts.net
 N8N_UPSTREAM_TLS_SERVER_NAME=n8n-prod.your-tailnet.ts.net
 WEBHOOK_PATHS="/webhook/stripe/* /webhook/github/*"
+FORM_METHODS="GET POST"
+FORM_PATHS="/form/* /form-test/* /form-waiting/*"
 ALLOWED_SOURCE_CIDRS="0.0.0.0/0 ::/0"
 HTTP_PORT=80
 HTTPS_PORT=443
@@ -116,6 +118,7 @@ N8N_UPSTREAM_URL=https://n8n-prod.your-tailnet.ts.net
 N8N_UPSTREAM_HOST=n8n-prod.your-tailnet.ts.net
 N8N_UPSTREAM_TLS_SERVER_NAME=n8n-prod.your-tailnet.ts.net
 WEBHOOK_PATHS="/webhook-test/* /webhook/*"
+FORM_PATHS="/form-test/* /form/* /form-waiting/*"
 ```
 
 Puis :
@@ -141,6 +144,7 @@ Dans cette topologie, l'URL publique est :
 
 ```text
 https://n8n-wh01.spiritviews.com/webhook-test/...
+https://n8n-wh01.spiritviews.com/form-test/...
 ```
 
 Pas besoin d'utiliser `:1443`, sauf si tu veux volontairement exposer un port HTTPS non standard.
@@ -191,10 +195,14 @@ La whitelist active se configure dans `.env` :
 ```env
 WEBHOOK_METHODS=POST
 WEBHOOK_PATHS="/webhook/stripe/* /webhook/github/*"
+FORM_METHODS="GET POST"
+FORM_PATHS="/form/contact/* /form-test/contact/* /form-waiting/*"
 ALLOWED_SOURCE_CIDRS="3.18.12.63/32 3.130.192.231/32"
 ```
 
-Garde `WEBHOOK_PATHS` aussi précis que possible. Si le fournisseur webhook ne publie pas d'IP stables, laisse `ALLOWED_SOURCE_CIDRS` ouvert mais ajoute une vérification de signature dans le workflow n8n dès le premier node.
+Garde `WEBHOOK_PATHS` et `FORM_PATHS` aussi précis que possible. Les Form Trigger utilisent `/form/*` en production et `/form-test/*` en test. Les formulaires générés au milieu d'une exécution, par exemple via Wait/Form, peuvent utiliser `/form-waiting/*`.
+
+Si le fournisseur webhook ne publie pas d'IP stables, laisse `ALLOWED_SOURCE_CIDRS` ouvert mais ajoute une vérification de signature dans le workflow n8n dès le premier node. Pour les forms publiques, préfère un chemin difficile à deviner, un champ caché signé, une validation côté workflow, ou une protection supplémentaire devant NPM si le formulaire contient des données sensibles.
 
 ## Plusieurs instances n8n
 

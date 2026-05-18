@@ -10,6 +10,22 @@
 	}
 }
 
+(proxy_to_n8n) {
+	request_body {
+		max_size {$MAX_BODY_SIZE}
+	}
+
+	reverse_proxy {$N8N_UPSTREAM_URL} {
+		header_up Host {$N8N_UPSTREAM_HOST:{upstream_hostport}}
+		header_up X-Forwarded-Proto https
+
+		transport http {
+			versions 1.1
+			tls_server_name {$N8N_UPSTREAM_TLS_SERVER_NAME}
+		}
+	}
+}
+
 {$CADDY_SITE_ADDRESS} {
 	encode zstd gzip
 
@@ -34,25 +50,23 @@
 		remote_ip {$ALLOWED_SOURCE_CIDRS}
 	}
 
+	@n8n_forms {
+		method {$FORM_METHODS}
+		path {$FORM_PATHS}
+		remote_ip {$ALLOWED_SOURCE_CIDRS}
+	}
+
 	route {
 		handle /healthz {
 			respond "ok\n" 200
 		}
 
 		handle @n8n_webhooks {
-			request_body {
-				max_size {$MAX_BODY_SIZE}
-			}
+			import proxy_to_n8n
+		}
 
-			reverse_proxy {$N8N_UPSTREAM_URL} {
-				header_up Host {$N8N_UPSTREAM_HOST:{upstream_hostport}}
-				header_up X-Forwarded-Proto https
-
-				transport http {
-					versions 1.1
-					tls_server_name {$N8N_UPSTREAM_TLS_SERVER_NAME}
-				}
-			}
+		handle @n8n_forms {
+			import proxy_to_n8n
 		}
 
 		respond 404

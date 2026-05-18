@@ -56,6 +56,8 @@ services:
       N8N_UPSTREAM_TLS_SERVER_NAME: "${N8N_UPSTREAM_TLS_SERVER_NAME:-}"
       WEBHOOK_METHODS: "${WEBHOOK_METHODS:-POST}"
       WEBHOOK_PATHS: "${WEBHOOK_PATHS:-/webhook/*}"
+      FORM_METHODS: "${FORM_METHODS:-GET POST}"
+      FORM_PATHS: "${FORM_PATHS:-/form/* /form-test/* /form-waiting/*}"
       ALLOWED_SOURCE_CIDRS: "${ALLOWED_SOURCE_CIDRS:-0.0.0.0/0 ::/0}"
       MAX_BODY_SIZE: "${MAX_BODY_SIZE:-10MB}"
       CADDY_LOG_DIR: "${CADDY_LOG_DIR:-/var/log/caddy}"
