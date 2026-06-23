@@ -56,19 +56,9 @@
 		remote_ip {$ALLOWED_SOURCE_CIDRS}
 	}
 
-	@contract_sign {
-		method GET POST
-		path /webhook/contract-sign
-		remote_ip {$ALLOWED_SOURCE_CIDRS}
-	}
-
 	route {
 		handle /healthz {
 			respond "ok\n" 200
-		}
-
-		handle @contract_sign {
-			import proxy_to_n8n
 		}
 
 		handle @n8n_webhooks {
