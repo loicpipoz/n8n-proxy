@@ -58,7 +58,7 @@
 
 	@contract_sign {
 		method GET POST
-		path /webhook/0key/contract-sign
+		path /webhook/contract-sign
 		remote_ip {$ALLOWED_SOURCE_CIDRS}
 	}
 
@@ -68,7 +68,6 @@
 		}
 
 		handle @contract_sign {
-			rewrite * /webhook/contract-sign
 			import proxy_to_n8n
 		}
 
