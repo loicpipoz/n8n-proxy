@@ -44,6 +44,9 @@
 		-Server
 	}
 
+	# Behind NPM, remote_ip is the immediate NPM peer. ALLOWED_SOURCE_CIDRS is
+	# currently public. Before narrowing it to client/provider CIDRs, configure
+	# trusted_proxies and replace remote_ip with client_ip in all matchers below.
 	@n8n_webhooks {
 		method {$WEBHOOK_METHODS}
 		path {$WEBHOOK_PATHS}
@@ -56,12 +59,42 @@
 		remote_ip {$ALLOWED_SOURCE_CIDRS}
 	}
 
+	@n8n_waiting {
+		method GET POST
+		path /webhook-waiting/* /form-waiting/*
+		remote_ip {$ALLOWED_SOURCE_CIDRS}
+	}
+
 	route {
 		handle /healthz {
 			respond "ok\n" 200
 		}
 
+		handle /webhook/simplemdm/admin-v2* {
+			respond 404
+		}
+
+		handle /webhook/simplemdm/admin-v3* {
+			respond 404
+		}
+
+		handle /form/28977235-01d8-4adf-9099-a0d84a1da50a {
+			respond 404
+		}
+
+		handle /webhook/00-traitements-recus* {
+			respond 404
+		}
+
+		handle /webhook-test/00-traitements-recus* {
+			respond 404
+		}
+
 		handle @n8n_webhooks {
+			import proxy_to_n8n
+		}
+
+		handle @n8n_waiting {
 			import proxy_to_n8n
 		}
 

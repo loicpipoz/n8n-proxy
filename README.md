@@ -103,15 +103,15 @@ Et assure-toi que `PUBLIC_DOMAIN` ne contient pas `:1443`. Pour un certificat pu
 
 ## Derriere Nginx Proxy Manager
 
-Si Nginx Proxy Manager est deja sur la meme machine et ecoute les ports publics `80` et `443`, laisse NPM gerer le certificat HTTPS et utilise `n8n-proxy` comme backend HTTP local.
+Si Nginx Proxy Manager est deja sur la meme machine et ecoute les ports publics `80` et `443`, laisse NPM gerer le certificat HTTPS et utilise `n8n-proxy` comme backend HTTP via la passerelle Docker de l'hote.
 
 Dans `.env` :
 
 ```env
 PUBLIC_DOMAIN=n8n-wh01.spiritviews.com
 CADDY_SITE_ADDRESS=:80
-HTTP_BIND=127.0.0.1
-HTTP_PORT=18080
+HTTP_BIND=0.0.0.0
+HTTP_PORT=8080
 HTTPS_BIND=127.0.0.1
 HTTPS_PORT=18443
 N8N_UPSTREAM_URL=https://n8n-prod.your-tailnet.ts.net
@@ -120,6 +120,10 @@ N8N_UPSTREAM_TLS_SERVER_NAME=n8n-prod.your-tailnet.ts.net
 WEBHOOK_PATHS="/webhook-test/* /webhook/*"
 FORM_PATHS="/form-test/* /form/* /form-waiting/*"
 ```
+
+Les liens d'approbation n8n générés par les nodes `Send and Wait` utilisent
+`/webhook-waiting/*`. Le `config/Caddyfile` les transfere explicitement en
+`GET` et `POST`, comme `/form-waiting/*`, vers l'instance n8n cible.
 
 Puis :
 
@@ -133,12 +137,73 @@ Dans Nginx Proxy Manager, cree un Proxy Host :
 ```text
 Domain Names: n8n-wh01.spiritviews.com
 Scheme: http
-Forward Hostname / IP: 127.0.0.1
-Forward Port: 18080
+Forward Hostname / IP: 172.17.0.1
+Forward Port: 8080
 SSL: Request a new SSL Certificate
 Force SSL: enabled
 HTTP/2 Support: enabled
 ```
+
+Depuis le conteneur NPM, `127.0.0.1` designe NPM lui-meme et non l'hote.
+L'adresse `172.17.0.1` est la passerelle Docker utilisee dans le deploiement
+actuel. Le port `8080` ne doit pas etre expose par le firewall public ; il sert
+uniquement au trajet NPM vers Caddy.
+
+### Traitement des erreurs dans Nginx Proxy Manager
+
+Caddy reste la barriere de securite principale : il limite les chemins, les
+methodes HTTP et, si necessaire, les adresses source. Nginx Proxy Manager est
+la couche TLS et de transport devant Caddy. Son masquage d'erreurs ne doit pas
+remplacer l'allowlist Caddy.
+
+Les reponses applicatives n8n `400`, `401`, `403`, `404`, `405`, `500` et
+`503` doivent traverser NPM sans etre remplacees. SpiritBooking utilise
+notamment `401` pour signaler un lien de gestion invalide ou expire, avec un
+corps JSON et les en-tetes CORS attendus par le navigateur.
+
+Dans l'onglet **Advanced** du Proxy Host NPM, limiter l'interception aux erreurs
+de passerelle `502` et `504` :
+
+```nginx
+proxy_intercept_errors on;
+
+error_page 502 504 = @generic_gateway_error;
+
+location @generic_gateway_error {
+    default_type application/json;
+
+    add_header Access-Control-Allow-Origin "*" always;
+    add_header Cache-Control "no-store" always;
+    add_header X-Content-Type-Options "nosniff" always;
+
+    return 404 '{"status":"not_found"}';
+}
+```
+
+Ne pas intercepter globalement les erreurs applicatives :
+
+```nginx
+# A ne pas utiliser : cette regle casse les statuts metier et leurs en-tetes CORS.
+error_page 400 401 403 404 405 500 502 503 504 =404 /generic-n8n-error.json;
+```
+
+Test non destructif de non-regression pour SpiritBooking :
+
+```bash
+curl -i \
+  -H 'Origin: null' \
+  -H 'Content-Type: application/json' \
+  --data '{"action":"manage/details","token":"invalid"}' \
+  https://n8n-wh01.spiritviews.com/webhook/0key/spiritbooking
+```
+
+Resultat attendu :
+
+- statut HTTP `401`, pas `404` ;
+- corps JSON metier indiquant que le lien est invalide ou expire ;
+- `Access-Control-Allow-Origin: *` ;
+- `Cache-Control: no-store` ;
+- `Via: 1.1 Caddy`, qui confirme le passage par Caddy.
 
 Dans cette topologie, l'URL publique est :
 
@@ -159,14 +224,24 @@ N8N_UPSTREAM_TLS_SERVER_NAME=n8n.monkey-eel.ts.net
 
 ## Configuration n8n
 
-Sur chaque instance n8n exposée derrière ce proxy :
+Avec Caddy comme seul reverse proxy devant n8n :
 
 ```env
-WEBHOOK_URL=https://hooks.example.com/
+N8N_WEBHOOK_URL=https://hooks.example.com/
 N8N_PROXY_HOPS=1
 ```
 
-Si tu utilises un domaine par instance, chaque n8n doit avoir son propre `WEBHOOK_URL`.
+Dans la topologie de production Nginx Proxy Manager -> Caddy -> n8n, il y a
+deux sauts de proxy :
+
+```env
+N8N_WEBHOOK_URL=https://n8n-wh01.spiritviews.com/
+N8N_PROXY_HOPS=2
+```
+
+La variable historique `WEBHOOK_URL` est depreciee sur les versions recentes
+de n8n ; utiliser `N8N_WEBHOOK_URL`. Chaque instance n8n avec son propre
+domaine doit avoir sa propre valeur.
 
 ## Logs
 
@@ -201,8 +276,20 @@ ALLOWED_SOURCE_CIDRS="3.18.12.63/32 3.130.192.231/32"
 ```
 
 Garde `WEBHOOK_PATHS` et `FORM_PATHS` aussi précis que possible. Les Form Trigger utilisent `/form/*` en production et `/form-test/*` en test. Les formulaires générés au milieu d'une exécution, par exemple via Wait/Form, peuvent utiliser `/form-waiting/*`.
+Les validations humaines générées par `Send and Wait`, par exemple les liens
+envoyés par mail ou Slack, utilisent `/webhook-waiting/*`; si `N8N_WEBHOOK_URL`
+pointe vers ce proxy public, ce chemin doit etre routé vers la même instance
+n8n que celle qui porte l'exécution en attente.
 
 Si le fournisseur webhook ne publie pas d'IP stables, laisse `ALLOWED_SOURCE_CIDRS` ouvert mais ajoute une vérification de signature dans le workflow n8n dès le premier node. Pour les forms publiques, préfère un chemin difficile à deviner, un champ caché signé, une validation côté workflow, ou une protection supplémentaire devant NPM si le formulaire contient des données sensibles.
+
+Derriere NPM, le matcher Caddy `remote_ip` voit l'adresse du proxy NPM, pas
+directement celle du navigateur. Ne remplace pas `ALLOWED_SOURCE_CIDRS` par des
+CIDR clients sans configurer d'abord `trusted_proxies`, puis utiliser le matcher
+`client_ip`.
+
+Retire `/webhook-test/0key/*` et `/form-test/*` de l'environnement de
+production des qu'ils ne sont plus utiles.
 
 ## Plusieurs instances n8n
 
@@ -232,7 +319,7 @@ hooks-client-a.example.com {
 Dans ce cas, l'instance cible doit utiliser :
 
 ```env
-WEBHOOK_URL=https://hooks-client-a.example.com/
+N8N_WEBHOOK_URL=https://hooks-client-a.example.com/
 N8N_PROXY_HOPS=1
 ```
 

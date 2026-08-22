@@ -1,6 +1,6 @@
 # Notes pour la prochaine intervention Codex
 
-Derniere mise a jour: 2026-05-21.
+Derniere mise a jour: 2026-08-22.
 
 Ce fichier est une note de reprise pour Codex. Il resume les acquis, les choix d'architecture, les pieges rencontres et les commandes utiles autour du repo `n8n-proxy`.
 
@@ -56,12 +56,12 @@ TS_EXTRA_ARGS="--ssh --accept-dns=true"
 PUBLIC_DOMAIN=n8n-wh01.spiritviews.com
 CADDY_SITE_ADDRESS=:80
 
-N8N_UPSTREAM_URL=https://100.68.54.24
+N8N_UPSTREAM_URL=https://100.110.202.6
 N8N_UPSTREAM_HOST=n8n.monkey-eel.ts.net
 N8N_UPSTREAM_TLS_SERVER_NAME=n8n.monkey-eel.ts.net
 
-WEBHOOK_METHODS="POST GET"
-WEBHOOK_PATHS="/webhook/* /webhook-test/*"
+WEBHOOK_METHODS="GET POST OPTIONS"
+WEBHOOK_PATHS="/webhook/0key/* /webhook-test/0key/*"
 
 FORM_METHODS="GET POST"
 FORM_PATHS="/form/* /form-test/* /form-waiting/*"
@@ -76,6 +76,21 @@ HTTP_PORT=8080
 HTTPS_BIND=127.0.0.1
 HTTPS_PORT=18443
 ```
+
+Etat de reference confirme le 2026-08-22 :
+
+- upstream tailnet : `https://100.110.202.6` ;
+- Host et SNI : `n8n.monkey-eel.ts.net` ;
+- methods webhook : `GET POST OPTIONS` ;
+- paths webhook : `/webhook/0key/* /webhook-test/0key/*` ;
+- NPM forward : `172.17.0.1:8080` ;
+- Caddy : `CADDY_SITE_ADDRESS=:80` ;
+- acces public navigateur : `ALLOWED_SOURCE_CIDRS="0.0.0.0/0 ::/0"`.
+
+Les routes `webhook-test` et `form-test` sont encore exposees pour le
+developpement. Les retirer avant le lancement si elles ne sont plus requises.
+Avec NPM puis Caddy devant n8n, verifier `N8N_PROXY_HOPS=2` sur l'instance n8n
+et utiliser `N8N_WEBHOOK_URL=https://n8n-wh01.spiritviews.com/`.
 
 Notes:
 
@@ -125,6 +140,36 @@ Fix:
 Forward Hostname / IP: 172.17.0.1
 Forward Port: 8080
 ```
+
+### Interception des erreurs NPM trop large
+
+Symptome observe avec SpiritBooking : une reponse metier `401` de n8n etait
+remplacee par un `404` generique OpenResty. La redirection interne Nginx
+supprimait aussi les en-tetes CORS de la reponse originale, ce qui faisait
+echouer le module dans le navigateur.
+
+Cause :
+
+```nginx
+proxy_intercept_errors on;
+error_page 400 401 403 404 405 500 502 503 504 =404 /generic-n8n-error.json;
+```
+
+Decision retenue : laisser traverser les statuts applicatifs n8n et ne masquer
+que les erreurs de passerelle `502` et `504` dans l'onglet **Advanced** du
+Proxy Host NPM. Le bloc exact et le test de non-regression sont documentes dans
+`README.md`, section « Traitement des erreurs dans Nginx Proxy Manager ».
+
+Preuve observee le 2026-08-22 avec un token volontairement invalide :
+
+- HTTP `401` conserve ;
+- JSON metier conserve ;
+- `Access-Control-Allow-Origin: *` ;
+- `Cache-Control: no-store` ;
+- `Via: 1.1 Caddy`.
+
+Ce test est non destructif. Il prouve le bon passage NPM -> Caddy -> n8n, mais
+ne remplace pas un test fonctionnel avec un vrai lien de gestion.
 
 ### MagicDNS Tailscale non resolu dans Caddy
 
@@ -254,6 +299,12 @@ Forms:
 FORM_METHODS="GET POST"
 FORM_PATHS="/form/* /form-test/* /form-waiting/*"
 ```
+
+Validations `Send and Wait`:
+
+- Les liens mail/Slack d'approbation n8n utilisent `/webhook-waiting/*`.
+- Ce chemin doit etre routé vers la meme instance n8n que celle qui porte l'execution en attente, avec `GET` et `POST` autorises.
+- Dans ce repo, `config/Caddyfile` a un matcher dédié pour `/webhook-waiting/*` et `/form-waiting/*`.
 
 Notes securite:
 
