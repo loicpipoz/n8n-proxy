@@ -16,6 +16,10 @@
 	}
 
 	reverse_proxy {$N8N_UPSTREAM_URL} {
+		# Classify requests that entered through the public webhook proxy. Remove
+		# any client-supplied value before setting the trusted internal marker.
+		header_up -X-Spirit-Ingress
+		header_up X-Spirit-Ingress public-webhook-proxy
 		header_up Host {$N8N_UPSTREAM_HOST:{upstream_hostport}}
 		header_up X-Forwarded-Proto https
 
@@ -35,7 +39,17 @@
 			roll_keep 30
 			roll_keep_for 720h
 		}
-		format json
+		format filter {
+			request>uri query {
+				replace token REDACTED
+				replace code REDACTED
+				replace csrf REDACTED
+				replace session REDACTED
+				replace signature REDACTED
+				replace key REDACTED
+			}
+			wrap json
+		}
 	}
 
 	header {
@@ -44,9 +58,9 @@
 		-Server
 	}
 
-	# Behind NPM, remote_ip is the immediate NPM peer. ALLOWED_SOURCE_CIDRS is
-	# currently public. Before narrowing it to client/provider CIDRs, configure
-	# trusted_proxies and replace remote_ip with client_ip in all matchers below.
+	# Behind NPM, remote_ip is the immediate NPM peer. Keep
+	# ALLOWED_SOURCE_CIDRS restricted to that peer or its dedicated Docker
+	# network. The public client IP is not an authorization signal here.
 	@n8n_webhooks {
 		method {$WEBHOOK_METHODS}
 		path {$WEBHOOK_PATHS}

@@ -61,12 +61,12 @@ N8N_UPSTREAM_HOST=n8n.monkey-eel.ts.net
 N8N_UPSTREAM_TLS_SERVER_NAME=n8n.monkey-eel.ts.net
 
 WEBHOOK_METHODS="GET POST OPTIONS"
-WEBHOOK_PATHS="/webhook/0key/* /webhook-test/0key/*"
+WEBHOOK_PATHS="/webhook/0key/*"
 
 FORM_METHODS="GET POST"
 FORM_PATHS="/form/* /form-test/* /form-waiting/*"
 
-ALLOWED_SOURCE_CIDRS="0.0.0.0/0 ::/0"
+ALLOWED_SOURCE_CIDRS="172.18.0.1/32"
 MAX_BODY_SIZE=10MB
 CADDY_LOG_DIR=/var/log/caddy
 
@@ -82,15 +82,29 @@ Etat de reference confirme le 2026-08-22 :
 - upstream tailnet : `https://100.110.202.6` ;
 - Host et SNI : `n8n.monkey-eel.ts.net` ;
 - methods webhook : `GET POST OPTIONS` ;
-- paths webhook : `/webhook/0key/* /webhook-test/0key/*` ;
+- paths webhook : `/webhook/0key/*` ;
 - NPM forward : `172.17.0.1:8080` ;
 - Caddy : `CADDY_SITE_ADDRESS=:80` ;
-- acces public navigateur : `ALLOWED_SOURCE_CIDRS="0.0.0.0/0 ::/0"`.
+- pair NPM observe par Caddy : `172.18.0.1` ;
+- IP Tailscale du proxy : `100.77.167.95` avec `tag:webhook-proxy` ;
+- acces Caddy limite a `ALLOWED_SOURCE_CIDRS="172.18.0.1/32"`.
 
-Les routes `webhook-test` et `form-test` sont encore exposees pour le
-developpement. Les retirer avant le lancement si elles ne sont plus requises.
-Avec NPM puis Caddy devant n8n, verifier `N8N_PROXY_HOPS=2` sur l'instance n8n
-et utiliser `N8N_WEBHOOK_URL=https://n8n-wh01.spiritviews.com/`.
+Les routes `webhook-test` ne sont pas exposees. Les routes `form-test` restent
+temporairement exposees jusqu'a la fin de l'inventaire des Form Triggers.
+Le dernier ingress devant n8n est le proxy HTTPS Tailscale qui transmet vers
+`n8n:5678`. Conserver `N8N_PROXY_HOPS=1` pour ne faire confiance qu'a ce saut,
+y compris lorsque NPM et Caddy existent plus en amont, et utiliser
+`N8N_WEBHOOK_URL=https://n8n-wh01.spiritviews.com/`.
+
+Le proxy supprime tout `X-Spirit-Ingress` fourni par le client puis injecte
+`X-Spirit-Ingress: public-webhook-proxy` vers n8n. Ce marqueur sert uniquement
+a classifier l'ingress et doit etre combine avec l'IP Tailscale du proxy et les
+gardes applicatifs n8n.
+
+Les logs d'acces Caddy remplacent les valeurs des parametres sensibles
+`token`, `code`, `csrf`, `session`, `signature` et `key` par `REDACTED`. Les
+anciens logs peuvent encore contenir des jetons et doivent etre purges apres
+rotation ou expiration de ceux-ci.
 
 Notes:
 

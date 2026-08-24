@@ -30,7 +30,7 @@ N8N_UPSTREAM_TLS_SERVER_NAME=n8n-prod.your-tailnet.ts.net
 WEBHOOK_PATHS="/webhook/stripe/* /webhook/github/*"
 FORM_METHODS="GET POST"
 FORM_PATHS="/form/* /form-test/* /form-waiting/*"
-ALLOWED_SOURCE_CIDRS="0.0.0.0/0 ::/0"
+ALLOWED_SOURCE_CIDRS="203.0.113.10/32"
 HTTP_PORT=80
 HTTPS_PORT=443
 ```
@@ -231,12 +231,13 @@ N8N_WEBHOOK_URL=https://hooks.example.com/
 N8N_PROXY_HOPS=1
 ```
 
-Dans la topologie de production Nginx Proxy Manager -> Caddy -> n8n, il y a
-deux sauts de proxy :
+Dans le deploiement Spiritviews, Nginx Proxy Manager et Caddy sont en amont du
+proxy HTTPS Tailscale qui transmet finalement vers `n8n:5678`. n8n ne doit
+faire confiance qu'a ce dernier saut :
 
 ```env
 N8N_WEBHOOK_URL=https://n8n-wh01.spiritviews.com/
-N8N_PROXY_HOPS=2
+N8N_PROXY_HOPS=1
 ```
 
 La variable historique `WEBHOOK_URL` est depreciee sur les versions recentes
@@ -256,6 +257,10 @@ Logs d'accès JSON persistés :
 ```bash
 tail -f logs/access.log
 ```
+
+Le format de logs filtre les parametres de requete sensibles (`token`, `code`,
+`csrf`, `session`, `signature` et `key`) avant ecriture. Ne remplace pas ce
+filtre par un simple `format json` en production.
 
 Logs runtime Caddy :
 
@@ -288,8 +293,9 @@ directement celle du navigateur. Ne remplace pas `ALLOWED_SOURCE_CIDRS` par des
 CIDR clients sans configurer d'abord `trusted_proxies`, puis utiliser le matcher
 `client_ip`.
 
-Retire `/webhook-test/0key/*` et `/form-test/*` de l'environnement de
-production des qu'ils ne sont plus utiles.
+Les routes `/webhook-test/0key/*` sont exclues de la configuration de
+production Spiritviews. Retire aussi `/form-test/*` des que l'inventaire des
+Form Triggers confirme qu'elles ne sont plus utiles.
 
 ## Plusieurs instances n8n
 
