@@ -279,11 +279,15 @@ dans chaque workflow : elle dupliquerait les ACL et pourrait verrouiller un
 administrateur apres un changement d'adresse. Si un controle supplementaire
 devient necessaire, commencer par journaliser la provenance sans blocage.
 
-Caddy tente d'ajouter `X-Spirit-Ingress: public-webhook-proxy`, mais ce marqueur
-n'etait pas visible dans les en-tetes recus par n8n lors de l'execution de
-controle `23009`. Il ne constitue donc pas un signal d'autorisation. Les
-barrieres effectives sont l'IP immediate NPM, `X-Spirit-Edge-Key`, les chemins
-Caddy, les ACL Tailscale et les gardes applicatifs.
+Caddy ecrase `X-Spirit-Ingress` avec `public-webhook-proxy`. Apres correction du
+bloc `header_up`, l'execution de controle `23038` a recu ce marqueur ainsi qu'une
+IPv4 publique dans `X-Spirit-Client-IP`; `X-Spirit-Edge-Key` etait absent des
+en-tetes n8n. Le marqueur et l'IP client restent des informations d'audit, pas
+des moyens d'authentification.
+
+NPM tourne dans la stack Swarm `rustdesk`. Les publications `80/443` doivent
+utiliser `mode: host` et la tache NPM doit etre recreee apres ce changement. Le
+mode ingress produisait `10.0.0.2` au lieu de l'adresse Internet du client.
 
 Si le conteneur ne resout pas le nom MagicDNS Tailscale, cible l'IP Tailscale et garde le hostname pour le Host header et le SNI TLS :
 

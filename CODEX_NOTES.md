@@ -106,10 +106,10 @@ Le dernier ingress devant n8n est le proxy HTTPS Tailscale qui transmet vers
 y compris lorsque NPM et Caddy existent plus en amont, et utiliser
 `N8N_WEBHOOK_URL=https://n8n-wh01.spiritviews.com/`.
 
-Le proxy supprime tout `X-Spirit-Ingress` fourni par le client puis tente
-d'injecter `X-Spirit-Ingress: public-webhook-proxy` vers n8n. Ce marqueur
-n'etait pas present dans les en-tetes recus par n8n lors de l'execution de
-controle `23009`; ne pas l'utiliser comme signal d'autorisation.
+Le proxy ecrase tout `X-Spirit-Ingress` fourni par le client avec
+`public-webhook-proxy`. Apres suppression de la double operation
+suppression/affectation, ce marqueur est present dans l'execution de controle
+`23038`. Il reste une information d'audit et non un signal d'autorisation.
 
 Caddy exige pour les webhooks, forms et callbacks d'attente a la fois l'adresse
 immediate NPM dans `ALLOWED_SOURCE_CIDRS` et une correspondance exacte de
@@ -121,6 +121,11 @@ NPM ecrase `X-Spirit-Client-IP` avec `$remote_addr`. Caddy ne l'accepte qu'apres
 validation de l'IP NPM et du secret, puis le transmet a n8n. Cette valeur est
 destinee a l'audit et au rate limiting, jamais a l'authentification ou a une
 autorisation de mutation.
+
+La stack Swarm `rustdesk` doit publier les ports NPM `80/443` en `mode: host`,
+avec une seule replique contrainte au noeud public. Apres passage de ingress a
+host, forcer une recreation de la tache NPM; sans cette recreation, n8n voyait
+encore `10.0.0.2` dans `X-Spirit-Client-IP`.
 
 Les logs d'acces Caddy remplacent les valeurs des parametres sensibles
 `token`, `code`, `csrf`, `session`, `signature` et `key` par `REDACTED`. Les
@@ -367,6 +372,9 @@ Etat valide le 2026-08-24 :
 - Le port `8080` expire depuis Internet et n'est pas publiquement joignable.
 - Le test local du secret retourne `404` sans secret, `404` avec un secret
   incorrect et atteint le reverse proxy avec le secret valide.
+- L'execution n8n `23038` confirme une IPv4 publique dans
+  `X-Spirit-Client-IP`, `X-Spirit-Ingress=public-webhook-proxy`, et l'absence de
+  `X-Spirit-Edge-Key` apres le dernier proxy.
 - `N8N_UPSTREAM_HOST` et `N8N_UPSTREAM_TLS_SERVER_NAME` sont obligatoires. Ne pas
   reutiliser un fallback Caddy imbrique dans `header_up Host`, car il ajoutait
   une accolade finale au Host adapte.
