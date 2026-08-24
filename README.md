@@ -232,14 +232,46 @@ Resultat attendu :
 - `Cache-Control: no-store` ;
 - `Via: 1.1 Caddy`, qui confirme le passage par Caddy.
 
-Dans cette topologie, l'URL publique est :
+Dans cette topologie, l'URL publique des webhooks de production est limitee au
+prefixe :
 
 ```text
-https://n8n-wh01.spiritviews.com/webhook-test/...
-https://n8n-wh01.spiritviews.com/form-test/...
+https://n8n-wh01.spiritviews.com/webhook/0key/...
 ```
 
-Pas besoin d'utiliser `:1443`, sauf si tu veux volontairement exposer un port HTTPS non standard.
+Les routes `/webhook-test/*` et les consoles admin ne sont pas exposees par ce
+domaine. Les routes n8n Forms sont gerees separement par `FORM_PATHS`; la
+configuration actuelle conserve temporairement `/form-test/*`. Pas besoin
+d'utiliser un port HTTPS non standard.
+
+### Matrice de securite validee
+
+Etat observe le 24 aout 2026 apres activation du secret NPM vers Caddy :
+
+| Entree | Resultat attendu |
+| --- | --- |
+| `https://n8n-wh01.spiritviews.com/` | `404` |
+| domaine public + `/webhook/spiritself-admin` | `404` |
+| domaine public + consoles admin SpiritBooking | `404` |
+| domaine public + `/webhook/0key/spiritbooking` | `200` avec un User-Agent navigateur |
+| Tailnet + `/webhook/spiritself-admin` | `200` |
+| Tailnet + consoles admin sans session | `401` |
+| port public `8080` | inaccessible depuis Internet |
+
+Le Webhook SpiritBooking utilise `ignoreBots`; un `curl` sans User-Agent de
+navigateur peut donc recevoir `403` avant la creation d'une execution n8n.
+
+Les consoles admin cumulent les ACL Tailscale, la session SpiritSELF Admin et
+le CSRF pour les mutations. Ne pas coder une seconde liste d'IP d'appareils
+dans chaque workflow : elle dupliquerait les ACL et pourrait verrouiller un
+administrateur apres un changement d'adresse. Si un controle supplementaire
+devient necessaire, commencer par journaliser la provenance sans blocage.
+
+Caddy tente d'ajouter `X-Spirit-Ingress: public-webhook-proxy`, mais ce marqueur
+n'etait pas visible dans les en-tetes recus par n8n lors de l'execution de
+controle `23009`. Il ne constitue donc pas un signal d'autorisation. Les
+barrieres effectives sont l'IP immediate NPM, `X-Spirit-Edge-Key`, les chemins
+Caddy, les ACL Tailscale et les gardes applicatifs.
 
 Si le conteneur ne resout pas le nom MagicDNS Tailscale, cible l'IP Tailscale et garde le hostname pour le Host header et le SNI TLS :
 

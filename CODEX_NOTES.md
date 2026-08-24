@@ -84,7 +84,7 @@ HTTPS_BIND=127.0.0.1
 HTTPS_PORT=18443
 ```
 
-Etat de reference confirme le 2026-08-22 :
+Etat de reference confirme le 2026-08-24 :
 
 - upstream tailnet : `https://100.110.202.6` ;
 - Host et SNI : `n8n.monkey-eel.ts.net` ;
@@ -105,10 +105,10 @@ Le dernier ingress devant n8n est le proxy HTTPS Tailscale qui transmet vers
 y compris lorsque NPM et Caddy existent plus en amont, et utiliser
 `N8N_WEBHOOK_URL=https://n8n-wh01.spiritviews.com/`.
 
-Le proxy supprime tout `X-Spirit-Ingress` fourni par le client puis injecte
-`X-Spirit-Ingress: public-webhook-proxy` vers n8n. Ce marqueur sert uniquement
-a classifier l'ingress et doit etre combine avec l'IP Tailscale du proxy et les
-gardes applicatifs n8n.
+Le proxy supprime tout `X-Spirit-Ingress` fourni par le client puis tente
+d'injecter `X-Spirit-Ingress: public-webhook-proxy` vers n8n. Ce marqueur
+n'etait pas present dans les en-tetes recus par n8n lors de l'execution de
+controle `23009`; ne pas l'utiliser comme signal d'autorisation.
 
 Caddy exige pour les webhooks, forms et callbacks d'attente a la fois l'adresse
 immediate NPM dans `ALLOWED_SOURCE_CIDRS` et une correspondance exacte de
@@ -296,7 +296,9 @@ Verifier public via NPM:
 
 ```bash
 curl -vvv https://n8n-wh01.spiritviews.com/healthz
-curl -vvv https://n8n-wh01.spiritviews.com/webhook/f2e41356-f794-44d1-b19a-560feb7741cf
+curl -vvv \
+  -A 'Mozilla/5.0 AppleWebKit/605.1.15 Safari/605.1.15' \
+  https://n8n-wh01.spiritviews.com/webhook/0key/spiritbooking
 ```
 
 Verifier Tailscale:
@@ -318,8 +320,8 @@ sudo tail -n 50 logs/access.log
 Webhooks:
 
 ```env
-WEBHOOK_METHODS="POST GET"
-WEBHOOK_PATHS="/webhook/* /webhook-test/*"
+WEBHOOK_METHODS="GET POST OPTIONS"
+WEBHOOK_PATHS="/webhook/0key/*"
 ```
 
 Forms:
@@ -341,15 +343,24 @@ Notes securite:
 - Preferer des chemins precis plutot que des wildcards quand les paths finaux sont connus.
 - Pour les forms publiques, prevoir une validation cote workflow si les donnees sont sensibles.
 - `ALLOWED_SOURCE_CIDRS` ouvert est acceptable pour des forms publiques, mais moins robuste pour des webhooks serveur-a-serveur.
+- Pour les consoles admin, conserver les ACL Tailscale comme garde reseau et
+  les sessions SpiritSELF Admin avec CSRF comme garde applicatif. Ne pas
+  dupliquer les IP des appareils dans chaque workflow sans besoin demontre.
 
 ## Etat fonctionnel observe
 
-Etat valide avant cette note:
+Etat valide le 2026-08-24 :
 
 - `CADDY_SITE_ADDRESS=:80` fonctionne: `/healthz` local retourne `200 ok`.
 - NPM peut joindre le backend quand il pointe vers `172.17.0.1:8080`.
-- Le direct Tailscale vers `https://n8n.monkey-eel.ts.net/webhook/...` retourne `{"message":"Workflow was started"}` depuis le poste client tailnet.
-- Le dernier correctif pousse force HTTP/1.1 vers l'upstream pour resoudre `http2: invalid Host header`; a retester cote serveur apres `git pull`.
+- Parmi les routes webhooks testees, le domaine public retourne `200` uniquement
+  pour `/webhook/0key/spiritbooking`; la racine et les routes admin testees
+  retournent `404`. Les routes Forms restent gouvernees par `FORM_PATHS`.
+- Le direct Tailnet retourne `200` sur `/webhook/spiritself-admin` et `401` sur
+  les consoles SpiritBooking sans session.
+- Le port `8080` expire depuis Internet et n'est pas publiquement joignable.
+- Le test local du secret retourne `404` sans secret, `404` avec un secret
+  incorrect et atteint le reverse proxy avec le secret valide.
 
 ## Ne pas faire
 
