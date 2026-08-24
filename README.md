@@ -31,6 +31,7 @@ WEBHOOK_PATHS="/webhook/stripe/* /webhook/github/*"
 FORM_METHODS="GET POST"
 FORM_PATHS="/form/* /form-test/* /form-waiting/*"
 ALLOWED_SOURCE_CIDRS="203.0.113.10/32"
+NPM_EDGE_KEY=replace-with-64-hex-characters
 HTTP_PORT=80
 HTTPS_PORT=443
 ```
@@ -119,6 +120,8 @@ N8N_UPSTREAM_HOST=n8n-prod.your-tailnet.ts.net
 N8N_UPSTREAM_TLS_SERVER_NAME=n8n-prod.your-tailnet.ts.net
 WEBHOOK_PATHS="/webhook-test/* /webhook/*"
 FORM_PATHS="/form-test/* /form/* /form-waiting/*"
+ALLOWED_SOURCE_CIDRS="172.18.0.1/32"
+NPM_EDGE_KEY=replace-with-64-hex-characters
 ```
 
 Les liens d'approbation n8n générés par les nodes `Send and Wait` utilisent
@@ -162,23 +165,32 @@ notamment `401` pour signaler un lien de gestion invalide ou expire, avec un
 corps JSON et les en-tetes CORS attendus par le navigateur.
 
 Dans l'onglet **Advanced** du Proxy Host NPM, limiter l'interception aux erreurs
-de passerelle `502` et `504` :
+de passerelle `502` et `504`, et injecter le secret partage avec Caddy :
 
 ```nginx
 proxy_intercept_errors on;
+
+# Cette valeur doit etre identique a NPM_EDGE_KEY dans le .env de n8n-proxy.
+# NPM ecrase ainsi tout en-tete fourni par le client.
+proxy_set_header X-Spirit-Edge-Key "SECRET_ALEATOIRE_64_CARACTERES";
 
 error_page 502 504 = @generic_gateway_error;
 
 location @generic_gateway_error {
     default_type application/json;
 
-    add_header Access-Control-Allow-Origin "*" always;
     add_header Cache-Control "no-store" always;
     add_header X-Content-Type-Options "nosniff" always;
+    add_header Retry-After "30" always;
 
-    return 404 '{"status":"not_found"}';
+    return 503 '{"status":"service_unavailable"}';
 }
 ```
+
+Genere le secret sur le VPS avec `openssl rand -hex 32`, sans le copier dans un
+ticket ou un journal. Caddy exige a la fois l'adresse immediate NPM declaree
+dans `ALLOWED_SOURCE_CIDRS` et cet en-tete. Il supprime ensuite
+`X-Spirit-Edge-Key` avant de transmettre la requete a n8n.
 
 Ne pas intercepter globalement les erreurs applicatives :
 

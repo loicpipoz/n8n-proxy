@@ -18,6 +18,7 @@
 	reverse_proxy {$N8N_UPSTREAM_URL} {
 		# Classify requests that entered through the public webhook proxy. Remove
 		# any client-supplied value before setting the trusted internal marker.
+		header_up -X-Spirit-Edge-Key
 		header_up -X-Spirit-Ingress
 		header_up X-Spirit-Ingress public-webhook-proxy
 		header_up Host {$N8N_UPSTREAM_HOST:{upstream_hostport}}
@@ -65,18 +66,21 @@
 		method {$WEBHOOK_METHODS}
 		path {$WEBHOOK_PATHS}
 		remote_ip {$ALLOWED_SOURCE_CIDRS}
+		header X-Spirit-Edge-Key {$NPM_EDGE_KEY}
 	}
 
 	@n8n_forms {
 		method {$FORM_METHODS}
 		path {$FORM_PATHS}
 		remote_ip {$ALLOWED_SOURCE_CIDRS}
+		header X-Spirit-Edge-Key {$NPM_EDGE_KEY}
 	}
 
 	@n8n_waiting {
 		method GET POST
 		path /webhook-waiting/* /form-waiting/*
 		remote_ip {$ALLOWED_SOURCE_CIDRS}
+		header X-Spirit-Edge-Key {$NPM_EDGE_KEY}
 	}
 
 	route {

@@ -59,6 +59,7 @@ services:
       FORM_METHODS: "${FORM_METHODS:-GET POST}"
       FORM_PATHS: "${FORM_PATHS:-/form/* /form-test/* /form-waiting/*}"
       ALLOWED_SOURCE_CIDRS: "${ALLOWED_SOURCE_CIDRS:-0.0.0.0/0 ::/0}"
+      NPM_EDGE_KEY: "${NPM_EDGE_KEY:?Set NPM_EDGE_KEY in .env}"
       MAX_BODY_SIZE: "${MAX_BODY_SIZE:-10MB}"
       CADDY_LOG_DIR: "${CADDY_LOG_DIR:-/var/log/caddy}"
     volumes:

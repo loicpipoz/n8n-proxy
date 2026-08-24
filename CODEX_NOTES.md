@@ -1,6 +1,6 @@
 # Notes pour la prochaine intervention Codex
 
-Derniere mise a jour: 2026-08-22.
+Derniere mise a jour: 2026-08-24.
 
 Ce fichier est une note de reprise pour Codex. Il resume les acquis, les choix d'architecture, les pieges rencontres et les commandes utiles autour du repo `n8n-proxy`.
 
@@ -67,6 +67,7 @@ FORM_METHODS="GET POST"
 FORM_PATHS="/form/* /form-test/* /form-waiting/*"
 
 ALLOWED_SOURCE_CIDRS="172.18.0.1/32"
+NPM_EDGE_KEY=REDACTED
 MAX_BODY_SIZE=10MB
 CADDY_LOG_DIR=/var/log/caddy
 
@@ -88,6 +89,8 @@ Etat de reference confirme le 2026-08-22 :
 - pair NPM observe par Caddy : `172.18.0.1` ;
 - IP Tailscale du proxy : `100.77.167.95` avec `tag:webhook-proxy` ;
 - acces Caddy limite a `ALLOWED_SOURCE_CIDRS="172.18.0.1/32"`.
+- secret partage NPM vers Caddy injecte dans `X-Spirit-Edge-Key` et conserve
+  uniquement dans NPM et le `.env` du proxy.
 
 Les routes `webhook-test` ne sont pas exposees. Les routes `form-test` restent
 temporairement exposees jusqu'a la fin de l'inventaire des Form Triggers.
@@ -100,6 +103,12 @@ Le proxy supprime tout `X-Spirit-Ingress` fourni par le client puis injecte
 `X-Spirit-Ingress: public-webhook-proxy` vers n8n. Ce marqueur sert uniquement
 a classifier l'ingress et doit etre combine avec l'IP Tailscale du proxy et les
 gardes applicatifs n8n.
+
+Caddy exige pour les webhooks, forms et callbacks d'attente a la fois l'adresse
+immediate NPM dans `ALLOWED_SOURCE_CIDRS` et une correspondance exacte de
+`X-Spirit-Edge-Key` avec `NPM_EDGE_KEY`. Il supprime le secret avant le proxy
+vers n8n. Sans variable `NPM_EDGE_KEY`, Docker Compose refuse maintenant de
+construire la configuration du service Caddy.
 
 Les logs d'acces Caddy remplacent les valeurs des parametres sensibles
 `token`, `code`, `csrf`, `session`, `signature` et `key` par `REDACTED`. Les
