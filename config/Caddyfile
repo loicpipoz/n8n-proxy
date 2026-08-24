@@ -16,12 +16,13 @@
 	}
 
 	reverse_proxy {$N8N_UPSTREAM_URL} {
-		# Classify requests that entered through the public webhook proxy. Remove
-		# any client-supplied value before setting the trusted internal marker.
+		# The request already passed the NPM source-IP and shared-secret matchers.
+		# Strip the secret, preserve NPM's audited client IP, and overwrite the
+		# internal ingress marker before forwarding to n8n.
 		header_up -X-Spirit-Edge-Key
-		header_up -X-Spirit-Ingress
+		header_up X-Spirit-Client-IP {http.request.header.X-Spirit-Client-IP}
 		header_up X-Spirit-Ingress public-webhook-proxy
-		header_up Host {$N8N_UPSTREAM_HOST:{upstream_hostport}}
+		header_up Host {$N8N_UPSTREAM_HOST}
 		header_up X-Forwarded-Proto https
 
 		transport http {

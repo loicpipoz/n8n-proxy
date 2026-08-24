@@ -43,9 +43,10 @@ HTTP/2 Support: enabled
 
 Ajouter aussi une Custom Location `/` vers `http://172.17.0.1:8080`. Son champ
 Advanced doit contenir `proxy_set_header X-Spirit-Edge-Key "...";` avec la meme
-valeur que `NPM_EDGE_KEY` dans le `.env`. Ne pas placer cette directive dans
-l'Advanced principal : NPM l'insere au niveau `server`, puis les directives
-generees dans `location /` empechent son heritage.
+valeur que `NPM_EDGE_KEY` dans le `.env`, puis
+`proxy_set_header X-Spirit-Client-IP $remote_addr;`. Ne pas placer ces directives
+dans l'Advanced principal : NPM l'insere au niveau `server`, puis les directives
+generees dans `location /` empechent leur heritage.
 
 Ne pas utiliser `127.0.0.1` dans NPM: depuis le conteneur NPM, cela pointe vers le conteneur NPM lui-meme, pas vers l'hote.
 
@@ -115,6 +116,11 @@ immediate NPM dans `ALLOWED_SOURCE_CIDRS` et une correspondance exacte de
 `X-Spirit-Edge-Key` avec `NPM_EDGE_KEY`. Il supprime le secret avant le proxy
 vers n8n. Sans variable `NPM_EDGE_KEY`, Docker Compose refuse maintenant de
 construire la configuration du service Caddy.
+
+NPM ecrase `X-Spirit-Client-IP` avec `$remote_addr`. Caddy ne l'accepte qu'apres
+validation de l'IP NPM et du secret, puis le transmet a n8n. Cette valeur est
+destinee a l'audit et au rate limiting, jamais a l'authentification ou a une
+autorisation de mutation.
 
 Les logs d'acces Caddy remplacent les valeurs des parametres sensibles
 `token`, `code`, `csrf`, `session`, `signature` et `key` par `REDACTED`. Les
@@ -361,6 +367,9 @@ Etat valide le 2026-08-24 :
 - Le port `8080` expire depuis Internet et n'est pas publiquement joignable.
 - Le test local du secret retourne `404` sans secret, `404` avec un secret
   incorrect et atteint le reverse proxy avec le secret valide.
+- `N8N_UPSTREAM_HOST` et `N8N_UPSTREAM_TLS_SERVER_NAME` sont obligatoires. Ne pas
+  reutiliser un fallback Caddy imbrique dans `header_up Host`, car il ajoutait
+  une accolade finale au Host adapte.
 
 ## Ne pas faire
 

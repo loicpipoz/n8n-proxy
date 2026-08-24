@@ -179,8 +179,9 @@ Dans le champ **Advanced** de cette Custom Location, injecte le secret partage :
 
 ```nginx
 # Cette valeur doit etre identique a NPM_EDGE_KEY dans le .env de n8n-proxy.
-# NPM ecrase ainsi tout en-tete fourni par le client.
+# NPM ecrase ainsi les valeurs fournies par le client.
 proxy_set_header X-Spirit-Edge-Key "SECRET_ALEATOIRE_64_CARACTERES";
+proxy_set_header X-Spirit-Client-IP $remote_addr;
 ```
 
 Dans l'onglet **Advanced** principal du Proxy Host, limite l'interception aux
@@ -206,6 +207,17 @@ Genere le secret sur le VPS avec `openssl rand -hex 32`, sans le copier dans un
 ticket ou un journal. Caddy exige a la fois l'adresse immediate NPM declaree
 dans `ALLOWED_SOURCE_CIDRS` et cet en-tete. Il supprime ensuite
 `X-Spirit-Edge-Key` avant de transmettre la requete a n8n.
+
+Caddy transmet `X-Spirit-Client-IP` jusqu'a n8n comme information d'audit. Dans
+un Webhook n8n, elle est disponible avec :
+
+```javascript
+$json.headers['x-spirit-client-ip']
+```
+
+Cette valeur peut alimenter les journaux, la detection d'abus et le rate
+limiting. Ne jamais l'utiliser seule pour authentifier un client ou autoriser
+une mutation.
 
 Ne pas intercepter globalement les erreurs applicatives :
 
