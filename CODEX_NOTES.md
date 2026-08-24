@@ -41,6 +41,12 @@ Force SSL: enabled
 HTTP/2 Support: enabled
 ```
 
+Ajouter aussi une Custom Location `/` vers `http://172.17.0.1:8080`. Son champ
+Advanced doit contenir `proxy_set_header X-Spirit-Edge-Key "...";` avec la meme
+valeur que `NPM_EDGE_KEY` dans le `.env`. Ne pas placer cette directive dans
+l'Advanced principal : NPM l'insere au niveau `server`, puis les directives
+generees dans `location /` empechent son heritage.
+
 Ne pas utiliser `127.0.0.1` dans NPM: depuis le conteneur NPM, cela pointe vers le conteneur NPM lui-meme, pas vers l'hote.
 
 ## `.env` serveur recommande

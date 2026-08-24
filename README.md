@@ -152,7 +152,7 @@ L'adresse `172.17.0.1` est la passerelle Docker utilisee dans le deploiement
 actuel. Le port `8080` ne doit pas etre expose par le firewall public ; il sert
 uniquement au trajet NPM vers Caddy.
 
-### Traitement des erreurs dans Nginx Proxy Manager
+### Secret NPM vers Caddy et traitement des erreurs
 
 Caddy reste la barriere de securite principale : il limite les chemins, les
 methodes HTTP et, si necessaire, les adresses source. Nginx Proxy Manager est
@@ -164,15 +164,30 @@ Les reponses applicatives n8n `400`, `401`, `403`, `404`, `405`, `500` et
 notamment `401` pour signaler un lien de gestion invalide ou expire, avec un
 corps JSON et les en-tetes CORS attendus par le navigateur.
 
-Dans l'onglet **Advanced** du Proxy Host NPM, limiter l'interception aux erreurs
-de passerelle `502` et `504`, et injecter le secret partage avec Caddy :
+La configuration **Advanced** du Proxy Host est placee au niveau `server`, alors
+que NPM genere le proxy dans `location /`. Pour que l'en-tete soit transmis,
+ajoute une **Custom Location** `/` avec le meme backend :
+
+```text
+Location: /
+Scheme: http
+Forward Hostname / IP: 172.17.0.1
+Forward Port: 8080
+```
+
+Dans le champ **Advanced** de cette Custom Location, injecte le secret partage :
 
 ```nginx
-proxy_intercept_errors on;
-
 # Cette valeur doit etre identique a NPM_EDGE_KEY dans le .env de n8n-proxy.
 # NPM ecrase ainsi tout en-tete fourni par le client.
 proxy_set_header X-Spirit-Edge-Key "SECRET_ALEATOIRE_64_CARACTERES";
+```
+
+Dans l'onglet **Advanced** principal du Proxy Host, limite l'interception aux
+erreurs de passerelle `502` et `504` :
+
+```nginx
+proxy_intercept_errors on;
 
 error_page 502 504 = @generic_gateway_error;
 
