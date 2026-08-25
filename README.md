@@ -9,6 +9,7 @@ Le proxy n'expose pas l'éditeur n8n. Il ne transfère que les méthodes, chemin
 - `compose.yaml`: stack Docker Compose Caddy + Tailscale.
 - `.env.example`: variables à copier vers `.env`.
 - `config/Caddyfile`: règles HTTPS, allowlist et logs JSON.
+- `docs/HANDOFF-2026-08-24.md`: note de reprise de l'environnement Spiritviews en production.
 - `logs/`: fichiers de logs Caddy montés depuis le conteneur.
 
 ## Démarrage
