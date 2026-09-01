@@ -30,6 +30,7 @@ ne decrivent plus le deploiement actif et ne doivent pas etre reappliquees.
 - `config/Caddyfile`: règles HTTPS, allowlist et logs JSON.
 - `config/Caddyfile.direct-*`: variantes Caddy directes, publiques ou Origin CA.
 - `deploy/rustdesk-direct-stack.yaml`: RustDesk Pro sans NPM, en reseau hote.
+- `docs/DIAGNOSTICS-PROXY.md`: contrat public et exploitation du Hub Diagnostics.
 - `docs/HANDOFF-2026-08-24.md`: note de reprise de l'environnement Spiritviews en production.
 - `docs/HANDOFF-2026-08-26.md`: etat courant apres migration vers le VPS 02.
 - `logs/`: fichiers de logs Caddy montés depuis le conteneur.

@@ -1,8 +1,4 @@
-(proxy_to_n8n_direct) {
-	request_body {
-		max_size {$MAX_BODY_SIZE}
-	}
-
+(n8n_reverse_proxy_direct) {
 	reverse_proxy {$N8N_UPSTREAM_URL} {
 		header_up -X-Spirit-Edge-Key
 		header_up X-Spirit-Client-IP {client_ip}
@@ -14,6 +10,28 @@
 			versions 1.1
 			tls_server_name {$N8N_UPSTREAM_TLS_SERVER_NAME}
 		}
+	}
+}
+
+(proxy_to_n8n_direct) {
+	request_body {
+		max_size {$MAX_BODY_SIZE}
+	}
+
+	import n8n_reverse_proxy_direct
+}
+
+(diagnostics_proxy_to_n8n_direct) {
+	route {
+		request_header X-Diagnostics-Original-Method {http.request.method}
+		request_header X-Diagnostics-Original-Path {http.request.uri.path}
+		rewrite * /webhook/0key/diagnostics/v1/intake
+
+		request_body {
+			max_size {$MAX_BODY_SIZE}
+		}
+
+		import n8n_reverse_proxy_direct
 	}
 }
 
@@ -63,6 +81,46 @@
 		remote_ip {$ALLOWED_SOURCE_CIDRS}
 	}
 
+	@diagnostics_arrivals_create {
+		method POST
+		path /webhook/0key/diagnostics/v1/arrivals
+		remote_ip {$ALLOWED_SOURCE_CIDRS}
+	}
+
+	@diagnostics_arrival_get {
+		method GET
+		path_regexp diagnostics_arrival_get_path ^/webhook/0key/diagnostics/v1/arrivals/[^/]+$
+		remote_ip {$ALLOWED_SOURCE_CIDRS}
+	}
+
+	@diagnostics_arrival_text {
+		method POST
+		path_regexp diagnostics_arrival_text_path ^/webhook/0key/diagnostics/v1/arrivals/[^/]+/text$
+		remote_ip {$ALLOWED_SOURCE_CIDRS}
+	}
+
+	@diagnostics_arrival_segments {
+		method GET
+		path_regexp diagnostics_arrival_segments_path ^/webhook/0key/diagnostics/v1/arrivals/[^/]+/segments$
+		remote_ip {$ALLOWED_SOURCE_CIDRS}
+	}
+
+	@diagnostics_segment_url {
+		method POST
+		path_regexp diagnostics_segment_url_path ^/webhook/0key/diagnostics/v1/arrivals/[^/]+/segments/[^/]+/url$
+		remote_ip {$ALLOWED_SOURCE_CIDRS}
+	}
+
+	@diagnostics_arrival_complete {
+		method POST
+		path_regexp diagnostics_arrival_complete_path ^/webhook/0key/diagnostics/v1/arrivals/[^/]+/complete$
+		remote_ip {$ALLOWED_SOURCE_CIDRS}
+	}
+
+	@diagnostics_forbidden {
+		path /webhook/0key/diagnostics /webhook/0key/diagnostics/*
+	}
+
 	route {
 		handle /healthz {
 			respond "ok\n" 200
@@ -85,6 +143,34 @@
 		}
 
 		handle /webhook-test/00-traitements-recus* {
+			respond 404
+		}
+
+		handle @diagnostics_arrivals_create {
+			import diagnostics_proxy_to_n8n_direct
+		}
+
+		handle @diagnostics_arrival_get {
+			import diagnostics_proxy_to_n8n_direct
+		}
+
+		handle @diagnostics_arrival_text {
+			import diagnostics_proxy_to_n8n_direct
+		}
+
+		handle @diagnostics_arrival_segments {
+			import diagnostics_proxy_to_n8n_direct
+		}
+
+		handle @diagnostics_segment_url {
+			import diagnostics_proxy_to_n8n_direct
+		}
+
+		handle @diagnostics_arrival_complete {
+			import diagnostics_proxy_to_n8n_direct
+		}
+
+		handle @diagnostics_forbidden {
 			respond 404
 		}
 
