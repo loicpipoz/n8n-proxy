@@ -34,6 +34,10 @@ sous `/webhook/0key/diagnostics/*` et toute mauvaise methode retournent `404`
 au niveau du proxy. Aucune route vers Swift ou `swift-control` n'est exposee.
 La limite globale de corps reste `10 MB`.
 
+Les trois headers HMAC Diagnostics et les deux headers internes `Original-*`
+sont supprimes des logs d'acces Caddy. Cette redaction ne modifie pas les
+headers transmis a l'upstream.
+
 ## Canary sans secret
 
 Ce test utilise volontairement une signature invalide. Le Hub doit refuser la

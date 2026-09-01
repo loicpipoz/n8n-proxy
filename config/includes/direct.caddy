@@ -53,6 +53,11 @@
 				replace signature REDACTED
 				replace key REDACTED
 			}
+			request>headers>X-Diagnostics-Key-Id delete
+			request>headers>X-Diagnostics-Timestamp delete
+			request>headers>X-Diagnostics-Signature delete
+			request>headers>X-Diagnostics-Original-Method delete
+			request>headers>X-Diagnostics-Original-Path delete
 			wrap json
 		}
 	}
