@@ -1,0 +1,29 @@
+{
+	log {
+		output file {$CADDY_LOG_DIR:/var/log/caddy}/runtime.log {
+			roll_size 20MiB
+			roll_keep 10
+			roll_keep_for 720h
+		}
+		format json
+		level INFO
+	}
+
+	servers {
+		trusted_proxies static {$TRUSTED_PROXY_CIDRS}
+		trusted_proxies_strict
+		client_ip_headers CF-Connecting-IP X-Forwarded-For
+	}
+}
+
+import /etc/caddy/includes/direct.caddy
+
+{$CADDY_SITE_ADDRESS} {
+	tls {$N8N_PUBLIC_CERT_FILE} {$N8N_PUBLIC_KEY_FILE}
+	import n8n_direct_site
+}
+
+{$RUSTDESK_SITE_ADDRESS} {
+	tls {$RUSTDESK_CERT_FILE} {$RUSTDESK_KEY_FILE}
+	import rustdesk_direct_site
+}

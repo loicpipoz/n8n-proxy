@@ -4,12 +4,34 @@ Reverse proxy public pour webhooks n8n, avec Caddy en frontal HTTPS et Tailscale
 
 Le proxy n'expose pas l'éditeur n8n. Il ne transfère que les méthodes, chemins et sources IP autorisés dans `config/Caddyfile` via les variables `.env`. Tout le reste retourne `404`.
 
+## Etat de production au 27 aout 2026
+
+Nginx Proxy Manager a ete retire des deux VPS. L'architecture active est :
+
+```text
+Internet -> Caddy -> Tailscale -> n8n
+Internet -> Caddy -> RustDesk hbbs (reseau hote, VPS 02 uniquement)
+Internet -> RustDesk hbbs/hbbr 21114-21119 (reseau hote, VPS 02 uniquement)
+```
+
+Le VPS 02 est l'origine active et gere automatiquement les certificats publics
+de `n8n-wh01.spiritviews.com`, `n8n-wh02.spiritviews.com` et
+`rd01.spiritviews.com`. Le VPS 01 reste allume comme origine n8n de secours avec
+un certificat public manuel. Voir `docs/HANDOFF-2026-08-26.md` pour les preuves,
+les limites Cloudflare et les commandes d'exploitation.
+
+Les sections NPM plus bas sont conservees comme historique de rollback. Elles
+ne decrivent plus le deploiement actif et ne doivent pas etre reappliquees.
+
 ## Fichiers
 
 - `compose.yaml`: stack Docker Compose Caddy + Tailscale.
 - `.env.example`: variables à copier vers `.env`.
 - `config/Caddyfile`: règles HTTPS, allowlist et logs JSON.
+- `config/Caddyfile.direct-*`: variantes Caddy directes, publiques ou Origin CA.
+- `deploy/rustdesk-direct-stack.yaml`: RustDesk Pro sans NPM, en reseau hote.
 - `docs/HANDOFF-2026-08-24.md`: note de reprise de l'environnement Spiritviews en production.
+- `docs/HANDOFF-2026-08-26.md`: etat courant apres migration vers le VPS 02.
 - `logs/`: fichiers de logs Caddy montés depuis le conteneur.
 
 ## Démarrage

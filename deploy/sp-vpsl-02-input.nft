@@ -1,0 +1,30 @@
+table inet spiritviews_input {
+	chain input {
+		type filter hook input priority filter + 10; policy drop;
+
+		ct state invalid counter drop
+		ct state { established, related } counter accept
+
+		iifname "lo" counter accept
+		iifname "tailscale0" counter accept
+
+		# Docker containers need to reach host-network RustDesk services.
+		iifname { "docker0", "docker_gwbridge" } counter accept
+		iifname "br-*" counter accept
+
+		ip protocol icmp counter accept
+		ip6 nexthdr ipv6-icmp counter accept
+
+		# DHCP is required because ens3 is configured dynamically by Netplan.
+		iifname "ens3" udp sport 67 udp dport 68 counter accept
+		iifname "ens3" udp sport 547 udp dport 546 counter accept
+
+		# Public web, RustDesk and direct Tailscale connectivity.
+		iifname "ens3" tcp dport { 80, 443, 21114-21119 } counter accept
+		iifname "ens3" tcp dport 22114 ct original proto-dst 21114 counter accept
+		iifname "ens3" udp dport { 21116, 41641 } counter accept
+
+		limit rate 10/minute burst 20 packets counter log prefix "spiritviews-input-drop: " level info
+		counter drop
+	}
+}

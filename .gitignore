@@ -1,4 +1,6 @@
 .env
+.env.SP-VPSL-*
 .DS_Store
 logs/*
 !logs/.gitignore
+secrets/

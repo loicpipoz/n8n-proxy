@@ -1,0 +1,6 @@
+table inet rustdesk_tls_21114 {
+	chain prerouting {
+		type nat hook prerouting priority -110; policy accept;
+		iifname "ens3" tcp dport 21114 counter redirect to :22114 comment "RustDesk legacy HTTPS to Caddy"
+	}
+}

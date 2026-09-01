@@ -37,9 +37,14 @@ services:
     cap_add:
       - NET_ADMIN
       - NET_RAW
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "${HTTP_BIND:-0.0.0.0}:${HTTP_PORT:-80}:80"
       - "${HTTPS_BIND:-0.0.0.0}:${HTTPS_PORT:-443}:443"
+      # Caddy terminates legacy RustDesk API TLS inside this shared network
+      # namespace. Public :21114 is redirected to this host-only shim port.
+      - "${RUSTDESK_TLS_SHIM_BIND:-0.0.0.0}:${RUSTDESK_TLS_SHIM_PORT:-22114}:21114"
 
   caddy:
     image: caddy:2-alpine
@@ -59,11 +64,24 @@ services:
       FORM_METHODS: "${FORM_METHODS:-GET POST}"
       FORM_PATHS: "${FORM_PATHS:-/form/* /form-test/* /form-waiting/*}"
       ALLOWED_SOURCE_CIDRS: "${ALLOWED_SOURCE_CIDRS:-0.0.0.0/0 ::/0}"
-      NPM_EDGE_KEY: "${NPM_EDGE_KEY:?Set NPM_EDGE_KEY in .env}"
+      NPM_EDGE_KEY: "${NPM_EDGE_KEY:-}"
+      TRUSTED_PROXY_CIDRS: "${TRUSTED_PROXY_CIDRS:-127.0.0.1/32}"
+      N8N_ORIGIN_CERT_FILE: "${N8N_ORIGIN_CERT_FILE:-/etc/caddy/origin/n8n-wh01.pem}"
+      N8N_ORIGIN_KEY_FILE: "${N8N_ORIGIN_KEY_FILE:-/etc/caddy/origin/n8n-wh01.key}"
+      N8N_PUBLIC_CERT_FILE: "${N8N_PUBLIC_CERT_FILE:-/etc/caddy/origin/n8n-wh01-public.pem}"
+      N8N_PUBLIC_KEY_FILE: "${N8N_PUBLIC_KEY_FILE:-/etc/caddy/origin/n8n-wh01-public.key}"
+      RUSTDESK_SITE_ADDRESS: "${RUSTDESK_SITE_ADDRESS:-rd01.spiritviews.com}"
+      RUSTDESK_WEB_UPSTREAM: "${RUSTDESK_WEB_UPSTREAM:-http://host.docker.internal:21114}"
+      RUSTDESK_ID_WS_UPSTREAM: "${RUSTDESK_ID_WS_UPSTREAM:-http://host.docker.internal:21118}"
+      RUSTDESK_RELAY_WS_UPSTREAM: "${RUSTDESK_RELAY_WS_UPSTREAM:-http://host.docker.internal:21119}"
+      RUSTDESK_CERT_FILE: "${RUSTDESK_CERT_FILE:-/etc/caddy/origin/rd01.pem}"
+      RUSTDESK_KEY_FILE: "${RUSTDESK_KEY_FILE:-/etc/caddy/origin/rd01.key}"
       MAX_BODY_SIZE: "${MAX_BODY_SIZE:-10MB}"
       CADDY_LOG_DIR: "${CADDY_LOG_DIR:-/var/log/caddy}"
     volumes:
-      - ./config/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./config/${CADDY_CONFIG_FILE:-Caddyfile}:/etc/caddy/Caddyfile:ro
+      - ./config/includes:/etc/caddy/includes:ro
+      - ${CADDY_ORIGIN_CERT_DIR:-./secrets/origin}:/etc/caddy/origin:ro
       - ./logs:/var/log/caddy
       - caddy-data:/data
       - caddy-config:/config

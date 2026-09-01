@@ -1,0 +1,43 @@
+version: "3.8"
+
+networks:
+  hostnet:
+    external: true
+    name: host
+
+services:
+  hbbs:
+    image: rustdesk/rustdesk-server-pro@sha256:2c7ea8ccafaf59817a9ab8eccf755955b6866ef3a2816dc078f1aeb2f0bee03d
+    command: hbbs -r rd01.spiritviews.com:21117
+    volumes:
+      - /home/debian/rustdesk-server-pro/rustdesk/data:/root
+    networks:
+      - hostnet
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == sp-vpsl-02
+      update_config:
+        order: stop-first
+        failure_action: rollback
+      restart_policy:
+        condition: any
+
+  hbbr:
+    image: rustdesk/rustdesk-server-pro@sha256:2c7ea8ccafaf59817a9ab8eccf755955b6866ef3a2816dc078f1aeb2f0bee03d
+    command: hbbr
+    volumes:
+      - /home/debian/rustdesk-server-pro/rustdesk/data:/root
+    networks:
+      - hostnet
+    deploy:
+      replicas: 1
+      placement:
+        constraints:
+          - node.hostname == sp-vpsl-02
+      update_config:
+        order: stop-first
+        failure_action: rollback
+      restart_policy:
+        condition: any

@@ -1,0 +1,138 @@
+(proxy_to_n8n_direct) {
+	request_body {
+		max_size {$MAX_BODY_SIZE}
+	}
+
+	reverse_proxy {$N8N_UPSTREAM_URL} {
+		header_up -X-Spirit-Edge-Key
+		header_up X-Spirit-Client-IP {client_ip}
+		header_up X-Spirit-Ingress public-webhook-proxy
+		header_up Host {$N8N_UPSTREAM_HOST}
+		header_up X-Forwarded-Proto https
+
+		transport http {
+			versions 1.1
+			tls_server_name {$N8N_UPSTREAM_TLS_SERVER_NAME}
+		}
+	}
+}
+
+(n8n_direct_site) {
+	encode zstd gzip
+
+	log {
+		output file {$CADDY_LOG_DIR:/var/log/caddy}/access.log {
+			roll_size 100MiB
+			roll_keep 30
+			roll_keep_for 720h
+		}
+		format filter {
+			request>uri query {
+				replace token REDACTED
+				replace code REDACTED
+				replace csrf REDACTED
+				replace session REDACTED
+				replace signature REDACTED
+				replace key REDACTED
+			}
+			wrap json
+		}
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	@n8n_webhooks {
+		method {$WEBHOOK_METHODS}
+		path {$WEBHOOK_PATHS}
+		remote_ip {$ALLOWED_SOURCE_CIDRS}
+	}
+
+	@n8n_forms {
+		method {$FORM_METHODS}
+		path {$FORM_PATHS}
+		remote_ip {$ALLOWED_SOURCE_CIDRS}
+	}
+
+	@n8n_waiting {
+		method GET POST
+		path /webhook-waiting/* /form-waiting/*
+		remote_ip {$ALLOWED_SOURCE_CIDRS}
+	}
+
+	route {
+		handle /healthz {
+			respond "ok\n" 200
+		}
+
+		handle /webhook/simplemdm/admin-v2* {
+			respond 404
+		}
+
+		handle /webhook/simplemdm/admin-v3* {
+			respond 404
+		}
+
+		handle /form/28977235-01d8-4adf-9099-a0d84a1da50a {
+			respond 404
+		}
+
+		handle /webhook/00-traitements-recus* {
+			respond 404
+		}
+
+		handle /webhook-test/00-traitements-recus* {
+			respond 404
+		}
+
+		handle @n8n_webhooks {
+			import proxy_to_n8n_direct
+		}
+
+		handle @n8n_waiting {
+			import proxy_to_n8n_direct
+		}
+
+		handle @n8n_forms {
+			import proxy_to_n8n_direct
+		}
+
+		respond 404
+	}
+}
+
+(rustdesk_direct_site) {
+	encode zstd gzip
+
+	log {
+		output file {$CADDY_LOG_DIR:/var/log/caddy}/rustdesk-access.log {
+			roll_size 100MiB
+			roll_keep 30
+			roll_keep_for 720h
+		}
+		format json
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	route {
+		handle /ws/id* {
+			reverse_proxy {$RUSTDESK_ID_WS_UPSTREAM}
+		}
+
+		handle /ws/relay* {
+			reverse_proxy {$RUSTDESK_RELAY_WS_UPSTREAM}
+		}
+
+		handle {
+			reverse_proxy {$RUSTDESK_WEB_UPSTREAM}
+		}
+	}
+}

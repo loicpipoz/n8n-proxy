@@ -1,0 +1,16 @@
+[Unit]
+Description=Redirect public RustDesk HTTPS 21114 to Caddy TLS shim
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStartPre=-/usr/sbin/nft delete table inet rustdesk_tls_21114
+ExecStart=/usr/sbin/nft -f /etc/nftables.d/rustdesk-tls-21114.nft
+ExecReload=/usr/sbin/nft -f /etc/nftables.d/rustdesk-tls-21114.nft
+ExecStop=/usr/sbin/nft delete table inet rustdesk_tls_21114
+
+[Install]
+WantedBy=multi-user.target
