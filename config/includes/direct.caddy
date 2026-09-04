@@ -195,6 +195,86 @@
 	}
 }
 
+(tonsurton_events_public_site) {
+	encode zstd gzip
+
+	log {
+		output file {$CADDY_LOG_DIR:/var/log/caddy}/myevents-access.log {
+			roll_size 100MiB
+			roll_keep 30
+			roll_keep_for 720h
+		}
+		format filter {
+			request>uri query {
+				replace token REDACTED
+				replace code REDACTED
+				replace csrf REDACTED
+				replace session REDACTED
+				replace signature REDACTED
+				replace key REDACTED
+			}
+			wrap json
+		}
+	}
+
+	header {
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+		-Server
+	}
+
+	@tonsurton_root {
+		method GET
+		path /
+	}
+
+	@tonsurton_health {
+		method GET
+		path /healthz
+	}
+
+	@tonsurton_public_get {
+		method GET
+		path /webhook/0key/tonsurton/events/ /webhook/0key/tonsurton/events/register/* /webhook/0key/tonsurton/events/manage/* /webhook/0key/tonsurton/events/theme.css
+	}
+
+	@tonsurton_public_post {
+		method POST
+		path /webhook/0key/tonsurton/events/register/* /webhook/0key/tonsurton/events/manage/*
+	}
+
+	@tonsurton_forbidden {
+		path /webhook/0key/tonsurton/events/admin* /rest/* /api/* /signin* /workflow/*
+	}
+
+	route {
+		handle @tonsurton_health {
+			respond "ok\n" 200
+		}
+
+		handle @tonsurton_forbidden {
+			respond 404
+		}
+
+		handle @tonsurton_root {
+			route {
+				rewrite * /webhook/0key/tonsurton/events/
+				import proxy_to_n8n_direct
+			}
+		}
+
+		handle @tonsurton_public_get {
+			import proxy_to_n8n_direct
+		}
+
+		handle @tonsurton_public_post {
+			import proxy_to_n8n_direct
+		}
+
+		respond 404
+	}
+}
+
 (rustdesk_direct_site) {
 	encode zstd gzip
 
@@ -226,4 +306,8 @@
 			reverse_proxy {$RUSTDESK_WEB_UPSTREAM}
 		}
 	}
+}
+
+myevents.tonsurton.ch {
+	import tonsurton_events_public_site
 }
