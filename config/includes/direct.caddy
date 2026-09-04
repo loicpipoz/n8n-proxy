@@ -233,23 +233,48 @@
 		path /healthz
 	}
 
-	@tonsurton_public_get {
-		method GET
-		path /webhook/0key/tonsurton/events/ /webhook/0key/tonsurton/events/register/* /webhook/0key/tonsurton/events/manage/* /webhook/0key/tonsurton/events/theme.css
+	@tonsurton_admin {
+		method GET POST
+		path /admin /admin/*
 	}
 
-	@tonsurton_public_post {
-		method POST
-		path /webhook/0key/tonsurton/events/register/* /webhook/0key/tonsurton/events/manage/*
+	@tonsurton_technical_paths {
+		path /webhook/0key/tonsurton /webhook/0key/tonsurton/*
 	}
 
 	@tonsurton_forbidden {
-		path /webhook/0key/tonsurton/events/admin* /rest/* /api/* /signin* /workflow/*
+		path /rest /rest/* /api /api/* /signin* /workflow /workflow/*
+	}
+
+	@tonsurton_register {
+		method GET POST
+		path /register/*
+	}
+
+	@tonsurton_manage {
+		method GET POST
+		path /manage/*
+	}
+
+	@tonsurton_theme {
+		method GET
+		path /theme.css
 	}
 
 	route {
 		handle @tonsurton_health {
 			respond "ok\n" 200
+		}
+
+		handle @tonsurton_admin {
+			route {
+				rewrite * /webhook/0key/tonsurton/events{http.request.uri.path}
+				import proxy_to_n8n_direct
+			}
+		}
+
+		handle @tonsurton_technical_paths {
+			respond 404
 		}
 
 		handle @tonsurton_forbidden {
@@ -263,12 +288,25 @@
 			}
 		}
 
-		handle @tonsurton_public_get {
-			import proxy_to_n8n_direct
+		handle @tonsurton_register {
+			route {
+				rewrite * /webhook/0key/tonsurton/events{http.request.uri.path}
+				import proxy_to_n8n_direct
+			}
 		}
 
-		handle @tonsurton_public_post {
-			import proxy_to_n8n_direct
+		handle @tonsurton_manage {
+			route {
+				rewrite * /webhook/0key/tonsurton/events{http.request.uri.path}
+				import proxy_to_n8n_direct
+			}
+		}
+
+		handle @tonsurton_theme {
+			route {
+				rewrite * /webhook/0key/tonsurton/events/theme.css
+				import proxy_to_n8n_direct
+			}
 		}
 
 		respond 404
