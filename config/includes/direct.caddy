@@ -198,6 +198,12 @@
 (tonsurton_events_public_site) {
 	encode zstd gzip
 
+	# Trusted first-party app only. Unknown upstream sandbox policies stay unchanged.
+	header {
+		Content-Security-Policy `(^|[;,][ \t]*)sandbox allow-downloads allow-forms allow-modals allow-orientation-lock allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-presentation allow-scripts allow-top-navigation-by-user-activation allow-top-navigation-to-custom-protocols([ \t]*[;,]|[ \t]*$)` "${1}sandbox allow-downloads allow-forms allow-modals allow-pointer-lock allow-popups allow-popups-to-escape-sandbox allow-scripts allow-same-origin allow-top-navigation-by-user-activation allow-top-navigation-to-custom-protocols${2}"
+		defer
+	}
+
 	log {
 		output file {$CADDY_LOG_DIR:/var/log/caddy}/myevents-access.log {
 			roll_size 100MiB
