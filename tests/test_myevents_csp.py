@@ -73,11 +73,11 @@ class MyeventsCSP(unittest.TestCase):
         env["CADDY_LOG_DIR"] = str(folder)
         template = (ROOT / "config/Caddyfile.direct-combined-public").read_text()
 
-        def adapt(source, name):
+        def adapt(source, name, top_level=template):
             snippet = folder / (name + ".caddy")
             snippet.write_text(source)
             caddyfile = folder / (name + ".Caddyfile")
-            caddyfile.write_text(template.replace(
+            caddyfile.write_text(top_level.replace(
                 "/etc/caddy/includes/direct.caddy", str(snippet)
             ))
             result = subprocess.run(
@@ -87,11 +87,23 @@ class MyeventsCSP(unittest.TestCase):
             return json.loads(result.stdout)
 
         cls.config = adapt((ROOT / "config/includes/direct.caddy").read_text(), "candidate")
+        n8n_only = (ROOT / "config/Caddyfile.direct-n8n-manual-public").read_text()
+        n8n_only_path = folder / "n8n-only.Caddyfile"
+        n8n_only_path.write_text(n8n_only.replace(
+            "/etc/caddy/includes/direct.caddy", str(folder / "candidate.caddy")
+        ))
+        cls.n8n_only = json.loads(subprocess.run(
+            ["caddy", "adapt", "--config", str(n8n_only_path)], env=env,
+            capture_output=True, text=True, check=True,
+        ).stdout)
         # The parent of the CSP-only commit remains the regression baseline.
         baseline = subprocess.check_output([
             "git", "show", "a0a53229a8c825732c03ffaa6683304ecd666d80:config/includes/direct.caddy"
         ], cwd=ROOT, text=True)
-        cls.baseline = adapt(baseline, "baseline")
+        baseline_top_level = subprocess.check_output([
+            "git", "show", "a0a53229a8c825732c03ffaa6683304ecd666d80:config/Caddyfile.direct-combined-public"
+        ], cwd=ROOT, text=True)
+        cls.baseline = adapt(baseline, "baseline", baseline_top_level)
         candidate = folder / "candidate.Caddyfile"
         subprocess.run(["caddy", "validate", "--config", str(candidate)],
                        env=env, check=True, capture_output=True)
@@ -216,6 +228,11 @@ class MyeventsCSP(unittest.TestCase):
                         n.get("response", {}).get("replace", {})]
         self.assertEqual(len(replacements), 1)
         self.assertTrue(replacements[0]["response"]["deferred"])
+
+    def test_n8n_only_entrypoint_does_not_serve_myevents(self):
+        hosts = [host for node in walk(self.n8n_only)
+                 for host in node.get("host", [])]
+        self.assertNotIn("myevents.tonsurton.ch", hosts)
 
 
 if __name__ == "__main__":

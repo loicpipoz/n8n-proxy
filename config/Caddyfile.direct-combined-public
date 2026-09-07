@@ -18,6 +18,10 @@
 
 import /etc/caddy/includes/direct.caddy
 
+myevents.tonsurton.ch {
+	import tonsurton_events_public_site
+}
+
 {$CADDY_SITE_ADDRESS} {
 	import n8n_direct_site
 }

@@ -19,6 +19,11 @@ La source canonique est `config/includes/direct.caddy`, snippet
 la reponse de l'upstream et remplace uniquement la directive sandbox connue de
 n8n, delimitee par le debut/fin de politique, une virgule ou un point-virgule.
 
+Le vhost est instancie uniquement par
+`config/Caddyfile.direct-combined-public`, l'entree de production de
+SP-VPSL-02. Les configurations n8n-only peuvent importer les snippets partages
+sans demander de certificat ni exposer `myevents`.
+
 - Ajoute `allow-same-origin`.
 - Retire `allow-orientation-lock` et `allow-presentation`.
 - Conserve les autres permissions, directives CSP et valeurs d'en-tete.
